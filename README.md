@@ -1,4 +1,4 @@
-<img src="assets/wave.svg" alt="An animated field of dots rippling with interference waves" width="880">
+<img src="assets/life.svg" alt="A dot-matrix grid spelling 42, dissolving into Conway's Game of Life and reassembling" width="880">
 
 ### Kris Wu — Full-Snack Developer
 
@@ -34,6 +34,7 @@ months.
 
 ---
 
-<sub>The banner is ~1900 dots driven by three interference waves on co-prime
-periods, so the pattern repeats once every 1001 seconds. It respects
-<code>prefers-reduced-motion</code>. Snacks not included.</sub>
+<sub>The banner is Conway's Game of Life on an 80&times;20 dot grid. It opens on
+42, ignites, runs wild on a wrapped edge so nothing escapes, and settles back
+into 42 every 19.6 seconds. Pause motion in your OS and it stays a still 42.
+Snacks not included.</sub>
