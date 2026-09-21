@@ -1,4 +1,7 @@
-<img src="assets/life.svg" alt="A dot-matrix grid spelling 42, dissolving into Conway's Game of Life and reassembling" width="880">
+<p align="center">
+  <img src="assets/42.svg" width="760"
+       alt="The number 42 drawn in dots, morphing through a series of typefaces">
+</p>
 
 ### Kris Wu — Full-Snack Developer
 
@@ -34,7 +37,7 @@ months.
 
 ---
 
-<sub>The banner is Conway's Game of Life on an 80&times;20 dot grid. It opens on
-42, ignites, runs wild on a wrapped edge so nothing escapes, and settles back
-into 42 every 19.6 seconds. Pause motion in your OS and it stays a still 42.
-Snacks not included.</sub>
+<sub>The banner is one 42, drawn with 210 dots, rebuilt in eight typefaces &mdash;
+Arial Black, Futura, DIN Condensed, Didot, Bodoni, Brush Script, Courier and
+Copperplate. Same dots every time, so they fly to their new seats instead of
+cutting. Pause motion in your OS and it settles on the first one.</sub>

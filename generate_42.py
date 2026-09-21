@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""
+Generate an animated dot-matrix "42" that morphs through a series of typefaces.
+
+Requires Pillow (only to rasterise the fonts):
+
+    python3 -m pip install Pillow
+    python3 generate_42.py > assets/42.svg
+
+The output is a plain static SVG with no dependencies of its own, so this script
+is a build step, not something the banner needs at runtime.
+
+How it works
+------------
+Every typeface is rasterised, then reduced to exactly DOTS points by binary
+searching a grid spacing that lands on that count -- a heavy face gets a coarse
+grid, a hairline face a fine one. Because every glyph is made of the same number
+of dots, consecutive glyphs can be matched one-to-one (nearest-neighbour, greedy)
+and each dot simply flies from its old seat to its new one.
+
+That means one CSS keyframe rule per dot -- 160 of them -- rather than one per
+frame. cx, cy and r all animate inside the same rule, so a dot changes size as
+it travels: coarse grids get fat dots, fine grids get small ones.
+
+GitHub renders SVG inside <img>, so there is no JavaScript available; all of the
+motion has to be baked into CSS at build time. Hence the above.
+"""
+
+import sys
+from PIL import Image, ImageDraw, ImageFont
+
+# ---------------------------------------------------------------- CONFIG ----
+
+WIDTH, HEIGHT = 760, 210        # canvas size in px
+GLYPH_HEIGHT = 170              # cap height of the "42" in px
+DOTS = 210                      # dots per glyph; identical across all typefaces
+
+HOLD = 0.60                     # share of each slot spent holding the glyph still
+SLOT_SECONDS = 1.7              # seconds per typeface, morph included
+
+DOT_SCALE = 0.30                # dot radius as a fraction of that glyph's spacing
+DOT_MIN, DOT_MAX = 2.3, 4.6     # clamp, so dense glyphs stay legible
+
+DOT_DARK = "#7C6BF5"            # dot colour on dark backgrounds
+DOT_LIGHT = "#4B3FD4"           # dot colour on light backgrounds
+
+TEXT = "42"
+
+# Ordered so the loop closes on two similarly wide, heavy faces.
+FONTS = [
+    ("/System/Library/Fonts/Supplemental/Arial Black.ttf", 0),
+    ("/System/Library/Fonts/Futura.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf", 0),
+    ("/System/Library/Fonts/Supplemental/Didot.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/Bodoni 72.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/Brush Script.ttf", 0),
+    ("/System/Library/Fonts/Supplemental/Courier New Bold.ttf", 0),
+    ("/System/Library/Fonts/Supplemental/Copperplate.ttc", 0),
+]
+
+INK = 110                       # alpha above which a pixel counts as ink
+
+# -------------------------------------------------------------- GENERATOR ---
+
+
+def rasterise(path, index):
+    """Render TEXT at GLYPH_HEIGHT, cropped tight to its ink."""
+    font = ImageFont.truetype(path, 420, index=index)
+    canvas = Image.new("L", (2000, 900), 0)
+    ImageDraw.Draw(canvas).text((120, 150), TEXT, 255, font=font)
+    box = canvas.getbbox()
+    if box is None:
+        raise ValueError(f"{path} rendered nothing")
+    cropped = canvas.crop(box)
+    width = max(1, round(cropped.width * GLYPH_HEIGHT / cropped.height))
+    return cropped.resize((width, GLYPH_HEIGHT), Image.LANCZOS)
+
+
+def sample(mask, spacing):
+    """Dot centres on a square grid of `spacing`, wherever the glyph has ink."""
+    out = []
+    y = spacing / 2
+    while y < mask.height:
+        x = spacing / 2
+        while x < mask.width:
+            if mask.getpixel((int(x), int(y))) > INK:
+                out.append((x, y))
+            x += spacing
+        y += spacing
+    return out
+
+
+def sample_exactly(mask, target):
+    """
+    Binary search the grid spacing that yields `target` dots, then trim or pad
+    to hit it exactly. Finer spacing always means more dots, so the search is
+    well behaved.
+    """
+    lo, hi = 1.2, 40.0
+    best = None
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        pts = sample(mask, mid)
+        if best is None or abs(len(pts) - target) < abs(len(best[1]) - target):
+            best = (mid, pts)
+        if len(pts) > target:
+            lo = mid
+        else:
+            hi = mid
+    spacing, pts = best
+    if len(pts) > target:
+        # Drop evenly across the list rather than from one edge.
+        keep = [pts[round(i * len(pts) / target)] for i in range(target)]
+        pts = keep
+    while len(pts) < target:
+        pts.append(pts[len(pts) % max(1, len(pts) - 1)])
+    return spacing, pts
+
+
+def centre(pts, mask):
+    """Move a glyph's dots into the middle of the canvas."""
+    ox = (WIDTH - mask.width) / 2
+    oy = (HEIGHT - mask.height) / 2
+    return [(round(x + ox, 1), round(y + oy, 1)) for (x, y) in pts]
+
+
+def match(previous, nxt):
+    """
+    Reorder `nxt` so nxt[i] is a near neighbour of previous[i], keeping each dot's
+    journey short. Greedy nearest-neighbour: good enough, and O(n^2) on n=160.
+    """
+    free = list(range(len(nxt)))
+    out = [None] * len(previous)
+    # Longest-travelling dots pick first, so no straggler is left with a far seat.
+    order = sorted(range(len(previous)), key=lambda i: -previous[i][0])
+    for i in order:
+        px, py = previous[i]
+        best = min(free, key=lambda j: (nxt[j][0] - px) ** 2 + (nxt[j][1] - py) ** 2)
+        out[i] = nxt[best]
+        free.remove(best)
+    return out
+
+
+def build():
+    glyphs = []
+    for path, index in FONTS:
+        mask = rasterise(path, index)
+        spacing, pts = sample_exactly(mask, DOTS)
+        radius = round(min(DOT_MAX, max(DOT_MIN, spacing * DOT_SCALE)), 2)
+        glyphs.append((centre(pts, mask), radius))
+        print(f"  {path.split('/')[-1]:26s} spacing={spacing:5.2f} r={radius} "
+              f"dots={len(pts)}", file=sys.stderr)
+
+    # Chain the matching so a dot keeps its identity all the way around the loop.
+    chained = [glyphs[0]]
+    for pts, radius in glyphs[1:]:
+        chained.append((match(chained[-1][0], pts), radius))
+
+    slots = len(chained)
+    duration = round(slots * SLOT_SECONDS, 3)
+    slot_pct = 100 / slots
+
+    rules = []
+    for dot in range(DOTS):
+        stops = []
+        for i, (pts, radius) in enumerate(chained):
+            x, y = pts[dot]
+            frame = f"cx:{x}px;cy:{y}px;r:{radius}px"
+            stops.append(f"{round(i * slot_pct, 3):g}%{{{frame}}}")
+            stops.append(f"{round((i + HOLD) * slot_pct, 3):g}%{{{frame}}}")
+        x, y = chained[0][0][dot]
+        stops.append(f"100%{{cx:{x}px;cy:{y}px;r:{chained[0][1]}px}}")
+        rules.append(f"@keyframes d{dot}{{{''.join(stops)}}}")
+
+    circles = []
+    for dot in range(DOTS):
+        x, y = chained[0][0][dot]
+        circles.append(
+            f'<circle cx="{x}" cy="{y}" r="{chained[0][1]}" '
+            f'style="animation-name:d{dot}"/>'
+        )
+
+    css = (
+        f":root{{--dot:{DOT_DARK}}}"
+        f"@media(prefers-color-scheme:light){{:root{{--dot:{DOT_LIGHT}}}}}"
+        f"circle{{fill:var(--dot);"
+        f"animation-duration:{duration}s;animation-iteration-count:infinite;"
+        f"animation-timing-function:cubic-bezier(.65,0,.35,1)}}"
+        # Without animation the circles fall back to their cx/cy/r attributes,
+        # which spell the first typeface -- a perfectly readable still "42".
+        "@media(prefers-reduced-motion:reduce){circle{animation:none}}"
+        + "".join(rules)
+    )
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" '
+        f'width="{WIDTH}" height="{HEIGHT}" role="img" '
+        f'aria-label="The number 42 drawn in dots, morphing through a series of '
+        f'typefaces">'
+        f"<style>{css}</style>{''.join(circles)}</svg>"
+    )
+    print(f"{slots} typefaces, {DOTS} dots, {duration}s loop, "
+          f"{len(svg) / 1024:.1f} KB", file=sys.stderr)
+    return svg
+
+
+if __name__ == "__main__":
+    sys.stdout.write(build() + "\n")
