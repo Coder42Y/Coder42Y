@@ -91,36 +91,32 @@ def sample(mask, spacing):
     rows = max(1, round(mask.height / spacing))
     cells = mask.resize((cols, rows), Image.BOX)
     step_x, step_y = mask.width / cols, mask.height / rows
-    return [((x + 0.5) * step_x, (y + 0.5) * step_y)
+    return [((x + 0.5) * step_x, (y + 0.5) * step_y, cells.getpixel((x, y)))
             for y in range(rows) for x in range(cols)
             if cells.getpixel((x, y)) > COVERAGE * 255]
 
 
 def sample_exactly(mask, target):
     """
-    Binary search the grid spacing that yields `target` dots, then trim or pad
-    to hit it exactly. Finer spacing always means more dots, so the search is
-    well behaved.
+    The widest grid spacing that still yields at least `target` dots, trimmed
+    down to exactly that many.
+
+    Finer spacing always means more dots, so the search is well behaved. The
+    dots dropped are the faintest cells -- the half-covered ones along a
+    stroke's edge -- which costs the least shape. Dots are never duplicated to
+    pad a glyph out: two dots at one position would look like a missing dot,
+    and every glyph has to show the same count as all the others.
     """
-    lo, hi = 1.2, 40.0
-    best = None
+    lo, hi = 0.8, 40.0
     for _ in range(60):
         mid = (lo + hi) / 2
-        pts = sample(mask, mid)
-        if best is None or abs(len(pts) - target) < abs(len(best[1]) - target):
-            best = (mid, pts)
-        if len(pts) > target:
+        if len(sample(mask, mid)) >= target:
             lo = mid
         else:
             hi = mid
-    spacing, pts = best
-    if len(pts) > target:
-        # Drop evenly across the list rather than from one edge.
-        keep = [pts[round(i * len(pts) / target)] for i in range(target)]
-        pts = keep
-    while len(pts) < target:
-        pts.append(pts[len(pts) % max(1, len(pts) - 1)])
-    return spacing, pts
+    pts = sample(mask, lo)
+    pts.sort(key=lambda p: -p[2])
+    return lo, [(x, y) for (x, y, _ink) in pts[:target]]
 
 
 def centre(pts, mask):
