@@ -58,7 +58,11 @@ FONTS = [
     ("/System/Library/Fonts/Supplemental/Copperplate.ttc", 0),
 ]
 
-INK = 110                       # alpha above which a pixel counts as ink
+COVERAGE = 0.30                 # ink share of a cell needed to earn a dot
+#
+# Sampling by coverage rather than by the cell's centre pixel matters: a high
+# contrast face like Didot draws the crossbar of its "4" only 2-3px thick, and
+# a centre probe steps straight over it, leaving a glyph that reads as "12".
 
 # -------------------------------------------------------------- GENERATOR ---
 
@@ -77,17 +81,19 @@ def rasterise(path, index):
 
 
 def sample(mask, spacing):
-    """Dot centres on a square grid of `spacing`, wherever the glyph has ink."""
-    out = []
-    y = spacing / 2
-    while y < mask.height:
-        x = spacing / 2
-        while x < mask.width:
-            if mask.getpixel((int(x), int(y))) > INK:
-                out.append((x, y))
-            x += spacing
-        y += spacing
-    return out
+    """
+    Dot centres on a grid of roughly `spacing`, wherever enough of the cell is
+    ink. Downscaling with BOX averages each cell, so the pixel value that comes
+    back is that cell's ink coverage -- thin strokes register instead of being
+    stepped over.
+    """
+    cols = max(1, round(mask.width / spacing))
+    rows = max(1, round(mask.height / spacing))
+    cells = mask.resize((cols, rows), Image.BOX)
+    step_x, step_y = mask.width / cols, mask.height / rows
+    return [((x + 0.5) * step_x, (y + 0.5) * step_y)
+            for y in range(rows) for x in range(cols)
+            if cells.getpixel((x, y)) > COVERAGE * 255]
 
 
 def sample_exactly(mask, target):
