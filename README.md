@@ -59,10 +59,8 @@ months.
 
 | Repo | What it is |
 | --- | --- |
-| [dsh-tui](https://github.com/Coder42Y/dsh-tui) | A terminal TUI for DeepSeek Harness, in the spirit of Claude Code |
 | [vps-proxy-deploy](https://github.com/Coder42Y/vps-proxy-deploy) | A Claude Code / Codex skill that probes the route, picks a protocol, and deploys a proxy with rollback at every step |
 | [four-gate-ai-workflow](https://github.com/Coder42Y/four-gate-ai-workflow) | A four-stage AI dev workflow: clarify, trace the root cause, check the facts, close the loop |
-| [health-assessment-quiz](https://github.com/Coder42Y/health-assessment-quiz) | Full-stack quiz system: Next.js + Prisma + PostgreSQL |
 
 ---
 
