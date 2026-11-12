@@ -11,14 +11,12 @@
   <img src="https://komarev.com/ghpvc/?username=Coder42Y&style=flat-square&color=7C6BF5&label=Profile+views" alt="Profile views">
 </p>
 
-Full-stack, technically. But there is always a detour past the snack table, and
-that is where most of these repos come from.
+I'm a full-stack engineer working on AI agent infrastructure: code review
+automation, skill and tool registries, project generators and multi-agent
+orchestration.
 
-I build the unglamorous plumbing that AI agents run on: review gates, skill
-registries, code generators, orchestration. The clever part is everyone else's
-job. I do the part that has to still work on Monday.
-
-Named after the answer. Still working on the question.
+Most of my work sits between the model and production. I make agent output
+verifiable, reviewable and safe to ship.
 
 ### What I reach for
 
