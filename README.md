@@ -69,8 +69,3 @@ months.
 Agent tooling, code review automation, or a snack recommendation — the inbox is
 open at **[mj53why@gmail.com](mailto:mj53why@gmail.com)**. Issues and PRs on any
 repo above work too.
-
-<sub>The banner is one 42, drawn with 210 dots, rebuilt in eight typefaces &mdash;
-Arial Black, Futura, DIN Condensed, Didot, Bodoni, Brush Script, Courier and
-Copperplate. Same dots every time, so they fly to their new seats instead of
-cutting. Pause motion in your OS and it settles on the first one.</sub>
